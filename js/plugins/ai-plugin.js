@@ -11,7 +11,9 @@ import { summarizeGraph, mockProvider, anthropicProvider } from "./aiProviders.j
 
 const STORAGE_KEY_API = "visualizer2:ai:apiKey";
 const STORAGE_KEY_MODEL = "visualizer2:ai:model";
+const STORAGE_KEY_MAX_TOKENS = "visualizer2:ai:maxTokens";
 const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const DEFAULT_MAX_TOKENS = 8192;
 
 function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);
@@ -61,12 +63,20 @@ export const aiPlugin = {
         const modelInput = el("input", { type: "text", class: "ai-model-id" });
         modelInput.value = localStorage.getItem(STORAGE_KEY_MODEL) || DEFAULT_MODEL;
         modelInput.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_MODEL, modelInput.value));
+
+        const maxTokensLabel = el("label", { text: "Max tokens (raise this for large/comprehensive diagrams)" });
+        const maxTokensInput = el("input", { type: "number", class: "ai-max-tokens", min: "256", max: "32000", step: "256" });
+        maxTokensInput.value = localStorage.getItem(STORAGE_KEY_MAX_TOKENS) || DEFAULT_MAX_TOKENS;
+        maxTokensInput.addEventListener("change", () => localStorage.setItem(STORAGE_KEY_MAX_TOKENS, maxTokensInput.value));
+
         settingsBody.append(
           warning,
           el("label", { text: "Anthropic API key" }),
           apiKeyInput,
           modelLabel,
-          modelInput
+          modelInput,
+          maxTokensLabel,
+          maxTokensInput
         );
         settings.append(summary, settingsBody);
 
@@ -133,9 +143,10 @@ export const aiPlugin = {
             const summaryData = summarizeGraph(ctx.graph);
             const apiKey = localStorage.getItem(STORAGE_KEY_API);
             const model = localStorage.getItem(STORAGE_KEY_MODEL) || DEFAULT_MODEL;
+            const maxTokens = Number(localStorage.getItem(STORAGE_KEY_MAX_TOKENS)) || DEFAULT_MAX_TOKENS;
 
             const reply = apiKey
-              ? await anthropicProvider(text, summaryData, { apiKey, model })
+              ? await anthropicProvider(text, summaryData, { apiKey, model, maxTokens })
               : mockProvider(text, summaryData);
 
             if (reply.type === "plan" && (reply.addNodes?.length || reply.addEdges?.length)) {

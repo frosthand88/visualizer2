@@ -95,13 +95,16 @@ export function mockProvider(request, summary) {
 // silently done for them. Requires the API key to allow direct browser
 // calls (Anthropic supports this for exactly this kind of app). -------
 
-export async function anthropicProvider(request, summary, { apiKey, model }) {
+const DEFAULT_MAX_TOKENS = 8192;
+
+export async function anthropicProvider(request, summary, { apiKey, model, maxTokens }) {
   const system = [
     "You are an architecture assistant embedded in a graph-diagramming tool.",
     "You will be given a summary of the current graph (nodes with label/category/group/docUrl, and edges).",
     "Respond with ONLY a single JSON object, no prose outside it, matching this shape:",
     '{ "type": "question" | "plan" | "info", "message": string, "addNodes"?: [{"label": string, "category"?: string}], "addEdges"?: [{"sourceLabel": string, "targetLabel": string, "label"?: string}] }',
     'Use "question" if the request is too vague to act on. Use "plan" when proposing concrete additions — addEdges must reference labels from addNodes or from the existing graph. Use "info" for summaries/explanations with no proposed change.',
+    "Keep the plan reasonably scoped (roughly 20-30 nodes at most) so the full JSON response fits well within the token budget and is never cut off mid-object.",
     "Never invent Terraform, Docker, or code output — that is out of scope.",
   ].join("\n");
 
@@ -115,7 +118,7 @@ export async function anthropicProvider(request, summary, { apiKey, model }) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1024,
+      max_tokens: maxTokens || DEFAULT_MAX_TOKENS,
       system,
       messages: [
         { role: "user", content: `Graph summary:\n${JSON.stringify(summary)}\n\nRequest: ${request}` },
@@ -130,13 +133,36 @@ export async function anthropicProvider(request, summary, { apiKey, model }) {
 
   const data = await res.json();
   const text = (data.content || []).map((block) => block.text || "").join("");
+  const truncated = data.stop_reason === "max_tokens";
+
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    if (truncated) {
+      return {
+        type: "info",
+        message:
+          "The response was cut off before any valid JSON closed out — it hit the token limit. " +
+          "Try increasing \"Max tokens\" in the AI provider settings, or ask for a smaller/more focused diagram.",
+      };
+    }
     return { type: "info", message: text || "(empty response)" };
   }
+
   try {
     return JSON.parse(jsonMatch[0]);
-  } catch {
-    return { type: "info", message: text };
+  } catch (err) {
+    if (truncated) {
+      return {
+        type: "info",
+        message:
+          "The response was cut off mid-JSON — it hit the token limit before finishing. " +
+          "Try increasing \"Max tokens\" in the AI provider settings, or ask for a smaller/more focused diagram.\n\n" +
+          `(Partial response, ${text.length} chars received.)`,
+      };
+    }
+    return {
+      type: "info",
+      message: `Couldn't parse the assistant's reply as a plan (${err.message}). Raw response:\n\n${text}`,
+    };
   }
 }
