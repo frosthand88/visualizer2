@@ -10,7 +10,7 @@ import { createProfileManager } from "./profile.js";
 import { createKnowledgeBase } from "./knowledgeBase.js";
 import { getPreset } from "./presets.js";
 
-export function initUi(graph) {
+export function initUi(graph, plugins) {
   const { cy } = graph;
   const groupManager = createGroupManager(graph);
   const visibility = createVisibility(graph, groupManager);
@@ -70,6 +70,16 @@ export function initUi(graph) {
   const btnResetAnalysis = document.getElementById("btn-reset-analysis");
   const btnKbMode = document.getElementById("btn-kb-mode");
   const knowledgeBase = createKnowledgeBase(graph);
+
+  const pluginToolbarGroup = document.getElementById("plugin-toolbar-group");
+  const pluginIoGroup = document.getElementById("plugin-io-group");
+  const pluginImporterSelect = document.getElementById("plugin-importer-select");
+  const pluginExporterSelect = document.getElementById("plugin-exporter-select");
+  const btnPluginImport = document.getElementById("btn-plugin-import");
+  const btnPluginExport = document.getElementById("btn-plugin-export");
+  const pluginImportFileInput = document.getElementById("plugin-import-file-input");
+  const pluginNodeFields = document.getElementById("plugin-node-fields");
+  const pluginEdgeFields = document.getElementById("plugin-edge-fields");
 
   const presetSelect = document.getElementById("preset-select");
   const presetCategories = document.getElementById("preset-categories");
@@ -176,7 +186,15 @@ export function initUi(graph) {
       return;
     }
     clearSearchUi();
-    analysis[mode](selected[0].id());
+
+    if (typeof analysis[mode] === "function") {
+      analysis[mode](selected[0].id());
+    } else {
+      const pluginMode = plugins.analysisModes.find((m) => m.id === mode);
+      if (!pluginMode) return;
+      const matched = pluginMode.run(selected[0].id(), { graph, cy, visibleGraph: analysis.visibleGraph });
+      analysis.highlightMatches(matched);
+    }
     btnResetAnalysis.disabled = false;
   }
 
@@ -515,6 +533,17 @@ export function initUi(graph) {
     };
   }
 
+  function pluginMenuItems(target, ctx) {
+    return plugins.contextMenuActions[target].map((def) => ({
+      label: def.label,
+      action: () => {
+        history.record();
+        def.action(ctx);
+        refreshAll();
+      },
+    }));
+  }
+
   cy.on("cxttap", "node", (evt) => {
     const node = evt.target;
     if (node.data("_groupContainer")) {
@@ -539,6 +568,7 @@ export function initUi(graph) {
           deleteSelection();
         },
       },
+      ...pluginMenuItems("node", { graph, cy, element: node }),
     ]);
   });
 
@@ -553,12 +583,16 @@ export function initUi(graph) {
           deleteSelection();
         },
       },
+      ...pluginMenuItems("edge", { graph, cy, element: edge }),
     ]);
   });
 
   cy.on("cxttap", (evt) => {
     if (evt.target !== cy) return;
-    showContextMenu(evt.originalEvent.clientX, evt.originalEvent.clientY, [addNodeMenuItem(evt.position)]);
+    showContextMenu(evt.originalEvent.clientX, evt.originalEvent.clientY, [
+      addNodeMenuItem(evt.position),
+      ...pluginMenuItems("canvas", { graph, cy, position: evt.position }),
+    ]);
   });
 
   // --- Properties panel ----------------------------------------------
@@ -606,6 +640,8 @@ export function initUi(graph) {
       propEdgeColor.value = ele.data("color") || "#999999";
       propLineStyle.value = ele.data("lineStyle") || "solid";
     }
+
+    populatePluginFieldValues(ele);
   }
 
   function activeElement() {
@@ -716,6 +752,143 @@ export function initUi(graph) {
     }
   });
 
+  // --- Plugins ---------------------------------------------------------
+
+  function renderPluginToolbarButtons() {
+    plugins.toolbarButtons.forEach((def) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = def.label;
+      if (def.title) btn.title = def.title;
+      btn.addEventListener("click", () => {
+        history.record();
+        def.onClick({
+          graph,
+          cy,
+          selectedNodes: cy.nodes(":selected").filter((n) => !n.data("_groupContainer")),
+          selectedEdges: cy.edges(":selected"),
+        });
+        refreshAll();
+      });
+      pluginToolbarGroup.appendChild(btn);
+    });
+  }
+
+  function makePluginFieldInput(def) {
+    if (def.type === "select") {
+      const select = document.createElement("select");
+      (def.options || []).forEach((opt) => {
+        const o = document.createElement("option");
+        o.value = opt;
+        o.textContent = opt;
+        select.appendChild(o);
+      });
+      return select;
+    }
+    const input = document.createElement("input");
+    input.type = def.type === "number" ? "number" : def.type === "color" ? "color" : "text";
+    return input;
+  }
+
+  function renderPluginFields(container, defs) {
+    defs.forEach((def) => {
+      const label = document.createElement("label");
+      label.textContent = def.label;
+      label.htmlFor = `plugin-field-${def.pluginId}-${def.key}`;
+      const input = makePluginFieldInput(def);
+      input.id = `plugin-field-${def.pluginId}-${def.key}`;
+      input.dataset.pluginKey = def.key;
+      const transform = def.type === "number" ? Number : (v) => v;
+      bindField(input, def.key, transform);
+      container.append(label, input);
+    });
+  }
+
+  function populatePluginFieldValues(ele) {
+    const defs = ele.isNode() ? plugins.nodeProperties : plugins.edgeProperties;
+    const container = ele.isNode() ? pluginNodeFields : pluginEdgeFields;
+    defs.forEach((def) => {
+      const input = container.querySelector(`[data-plugin-key="${def.key}"]`);
+      if (input) input.value = ele.data(def.key) || "";
+    });
+  }
+
+  function wirePluginImportExport() {
+    const hasImporters = plugins.importers.length > 0;
+    const hasExporters = plugins.exporters.length > 0;
+    pluginIoGroup.classList.toggle("hidden", !hasImporters && !hasExporters);
+
+    pluginImporterSelect.classList.toggle("hidden", !hasImporters);
+    btnPluginImport.classList.toggle("hidden", !hasImporters);
+    plugins.importers.forEach((imp) => {
+      const o = document.createElement("option");
+      o.value = imp.id;
+      o.textContent = imp.label;
+      pluginImporterSelect.appendChild(o);
+    });
+
+    pluginExporterSelect.classList.toggle("hidden", !hasExporters);
+    btnPluginExport.classList.toggle("hidden", !hasExporters);
+    plugins.exporters.forEach((exp) => {
+      const o = document.createElement("option");
+      o.value = exp.id;
+      o.textContent = exp.label;
+      pluginExporterSelect.appendChild(o);
+    });
+
+    btnPluginImport.addEventListener("click", () => {
+      const importer = plugins.importers.find((i) => i.id === pluginImporterSelect.value);
+      if (!importer) return;
+      pluginImportFileInput.accept = importer.accept || "";
+      pluginImportFileInput.dataset.importerId = importer.id;
+      pluginImportFileInput.click();
+    });
+
+    pluginImportFileInput.addEventListener("change", async () => {
+      const file = pluginImportFileInput.files[0];
+      const importer = plugins.importers.find((i) => i.id === pluginImportFileInput.dataset.importerId);
+      pluginImportFileInput.value = "";
+      if (!file || !importer) return;
+      try {
+        const text = await file.text();
+        const result = importer.parse(text);
+        history.record();
+        graph.loadJson(result);
+        groupManager.loadJson(result.groups || []);
+        refreshAll();
+      } catch (err) {
+        alert(`Import failed: ${err.message}`);
+      }
+    });
+
+    btnPluginExport.addEventListener("click", () => {
+      const exporter = plugins.exporters.find((e) => e.id === pluginExporterSelect.value);
+      if (!exporter) return;
+      const content = exporter.serialize({ ...graph.toJson(), groups: groupManager.toJson() });
+      const blob = new Blob([content], { type: exporter.mime || "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = exporter.filename || "export.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  function initPlugins() {
+    renderPluginToolbarButtons();
+    renderPluginFields(pluginNodeFields, plugins.nodeProperties);
+    renderPluginFields(pluginEdgeFields, plugins.edgeProperties);
+    wirePluginImportExport();
+    plugins.analysisModes.forEach((mode) => {
+      const o = document.createElement("option");
+      o.value = mode.id;
+      o.textContent = mode.label;
+      analysisSelect.appendChild(o);
+    });
+  }
+
+  initPlugins();
   refreshPresetCategories();
   refreshAll();
 }

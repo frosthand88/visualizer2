@@ -77,5 +77,14 @@ export function createAnalysis(graph) {
     reset() {
       cy.elements().removeClass("analysis-match analysis-dim");
     },
+
+    // Exposed so plugin-contributed analysis modes (Phase 10) render
+    // identically to the built-in ones instead of reimplementing
+    // highlight/dim logic of their own.
+    visibleGraph,
+    highlightMatches(matchedNodeIds) {
+      const { nodes, edges } = visibleGraph();
+      applyHighlight(nodes, edges, matchedNodeIds, edgesInducedBy(matchedNodeIds, edges));
+    },
   };
 }

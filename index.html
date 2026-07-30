@@ -64,6 +64,14 @@
       <button id="btn-load-profile" title="Apply a saved view on top of the current graph">Load Profile</button>
       <input type="file" id="profile-file-input" accept="application/json" hidden />
     </div>
+    <div class="toolbar-group" id="plugin-toolbar-group"></div>
+    <div class="toolbar-group hidden" id="plugin-io-group">
+      <select id="plugin-importer-select"></select>
+      <button id="btn-plugin-import">Import</button>
+      <input type="file" id="plugin-import-file-input" hidden />
+      <select id="plugin-exporter-select"></select>
+      <button id="btn-plugin-export">Export</button>
+    </div>
   </header>
 
   <div id="app">
@@ -151,6 +159,8 @@
 
           <label for="prop-docurl">Documentation URL</label>
           <input type="text" id="prop-docurl" placeholder="https://..." />
+
+          <div id="plugin-node-fields"></div>
         </div>
 
         <div id="edge-fields">
@@ -177,6 +187,8 @@
             <option value="dashed">Dashed</option>
             <option value="dotted">Dotted</option>
           </select>
+
+          <div id="plugin-edge-fields"></div>
         </div>
 
         <p id="prop-id" class="prop-id"></p>
