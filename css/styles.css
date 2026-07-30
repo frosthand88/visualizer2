@@ -370,6 +370,36 @@ body {
   margin-bottom: 4px;
 }
 
+#preset-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+#preset-categories button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+#preset-categories button:hover {
+  background: #f0f2f5;
+}
+
+#preset-categories .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 .prop-id {
   margin-top: 8px;
   font-size: 0.75rem;

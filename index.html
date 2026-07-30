@@ -31,6 +31,16 @@
       </select>
     </div>
     <div class="toolbar-group">
+      <label for="preset-select">Preset</label>
+      <select id="preset-select">
+        <option value="container">Container</option>
+        <option value="class">Class</option>
+        <option value="er">ER</option>
+        <option value="sitemap">Site Map</option>
+        <option value="usecase">Use Case</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
       <button id="btn-kb-mode" title="Knowledge Base mode: click a node to open its documentation">KB Mode</button>
     </div>
     <div class="toolbar-group">
@@ -105,6 +115,9 @@
         <input type="text" id="prop-label" />
 
         <div id="node-fields">
+          <label>Quick category (current preset)</label>
+          <div id="preset-categories"></div>
+
           <label for="prop-category">Category</label>
           <input type="text" id="prop-category" />
 

@@ -8,6 +8,7 @@ import { createVisibility } from "./visibility.js";
 import { createAnalysis } from "./analysis.js";
 import { createProfileManager } from "./profile.js";
 import { createKnowledgeBase } from "./knowledgeBase.js";
+import { getPreset } from "./presets.js";
 
 export function initUi(graph) {
   const { cy } = graph;
@@ -69,6 +70,40 @@ export function initUi(graph) {
   const btnResetAnalysis = document.getElementById("btn-reset-analysis");
   const btnKbMode = document.getElementById("btn-kb-mode");
   const knowledgeBase = createKnowledgeBase(graph);
+
+  const presetSelect = document.getElementById("preset-select");
+  const presetCategories = document.getElementById("preset-categories");
+
+  function currentPreset() {
+    return getPreset(presetSelect.value);
+  }
+
+  function refreshPresetCategories() {
+    presetCategories.innerHTML = "";
+    currentPreset().categories.forEach((cat) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = cat.color;
+      btn.append(swatch, document.createTextNode(cat.name));
+      btn.title = `Apply the "${cat.name}" look from the ${currentPreset().label} preset`;
+      btn.addEventListener("click", () => {
+        const ele = activeElement();
+        if (!ele || !ele.isNode()) return;
+        history.record();
+        graph.updateData(ele, "category", cat.name);
+        graph.updateData(ele, "shape", cat.shape);
+        graph.updateData(ele, "color", cat.color);
+        showProperties(ele);
+        refreshCategoryList();
+        refreshHistoryButtons();
+      });
+      presetCategories.appendChild(btn);
+    });
+  }
+
+  presetSelect.addEventListener("change", refreshPresetCategories);
 
   const profileManager = createProfileManager({
     graph,
@@ -295,7 +330,11 @@ export function initUi(graph) {
       x: (extent.x1 + extent.x2) / 2 + (Math.random() - 0.5) * 60,
       y: (extent.y1 + extent.y2) / 2 + (Math.random() - 0.5) * 60,
     };
-    const node = graph.addNode({ label: "New node" }, position);
+    const defaultCat = currentPreset().categories[0];
+    const node = graph.addNode(
+      { label: "New node", category: defaultCat.name, shape: defaultCat.shape, color: defaultCat.color },
+      position
+    );
     cy.elements().unselect();
     node.select();
     refreshAll();
@@ -440,7 +479,7 @@ export function initUi(graph) {
         modeIndicator.textContent = `Source: ${node.data("label")} — now click a target node`;
       } else if (edgeModeSource.id() !== node.id()) {
         history.record();
-        const edge = graph.addEdge(edgeModeSource.id(), node.id(), {});
+        const edge = graph.addEdge(edgeModeSource.id(), node.id(), { ...currentPreset().edgeStyle });
         setEdgeMode(false);
         cy.elements().unselect();
         edge.select();
@@ -464,7 +503,11 @@ export function initUi(graph) {
       label: "Add node here",
       action: () => {
         history.record();
-        const node = graph.addNode({ label: "New node" }, position);
+        const defaultCat = currentPreset().categories[0];
+        const node = graph.addNode(
+          { label: "New node", category: defaultCat.name, shape: defaultCat.shape, color: defaultCat.color },
+          position
+        );
         cy.elements().unselect();
         node.select();
         refreshAll();
@@ -673,5 +716,6 @@ export function initUi(graph) {
     }
   });
 
+  refreshPresetCategories();
   refreshAll();
 }
