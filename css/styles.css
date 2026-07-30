@@ -419,6 +419,7 @@ body {
 
 .ai-entry p {
   margin: 0 0 6px;
+  white-space: pre-wrap;
 }
 
 .ai-entry ul {
