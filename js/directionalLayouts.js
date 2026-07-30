@@ -9,27 +9,11 @@
 // of scrambling it. The whole result is also re-centered on the current
 // centroid so the graph doesn't jump across the canvas.
 
+import { buildAdjacency } from "./graphAlgorithms.js";
+
 const LEVEL_GAP = 110;
 const SIBLING_GAP = 90;
 const RING_GAP = 110;
-
-function buildAdjacency(nodes, edges) {
-  const ids = new Set(nodes.map((n) => n.id()));
-  const outgoing = new Map();
-  const incoming = new Map();
-  ids.forEach((id) => {
-    outgoing.set(id, []);
-    incoming.set(id, []);
-  });
-  edges.forEach((e) => {
-    const s = e.data("source");
-    const t = e.data("target");
-    if (!ids.has(s) || !ids.has(t)) return;
-    outgoing.get(s).push(t);
-    incoming.get(t).push(s);
-  });
-  return { outgoing, incoming, ids };
-}
 
 // First-visit-wins multi-source BFS: gives shortest distance from the
 // nearest root and terminates cleanly even with cycles, since each node

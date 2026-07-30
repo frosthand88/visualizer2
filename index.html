@@ -31,6 +31,17 @@
       </select>
     </div>
     <div class="toolbar-group">
+      <label for="analysis-select">Analyze</label>
+      <select id="analysis-select">
+        <option value="dependency">Dependency</option>
+        <option value="impact">Impact</option>
+        <option value="flow">Flow</option>
+        <option value="hierarchy">Hierarchy</option>
+      </select>
+      <button id="btn-run-analysis">Run</button>
+      <button id="btn-reset-analysis" disabled>Reset</button>
+    </div>
+    <div class="toolbar-group">
       <button id="btn-save">Save JSON</button>
       <button id="btn-load">Load JSON</button>
       <input type="file" id="file-input" accept="application/json" hidden />

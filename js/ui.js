@@ -5,11 +5,13 @@ import { createHistory } from "./history.js";
 import { showContextMenu } from "./contextMenu.js";
 import { createGroupManager } from "./groups.js";
 import { createVisibility } from "./visibility.js";
+import { createAnalysis } from "./analysis.js";
 
 export function initUi(graph) {
   const { cy } = graph;
   const groupManager = createGroupManager(graph);
   const visibility = createVisibility(graph);
+  const analysis = createAnalysis(graph);
   const history = createHistory({
     snapshot: () => JSON.stringify({ ...graph.toJson(), groups: groupManager.toJson() }),
     restore: (json) => {
@@ -57,7 +59,12 @@ export function initUi(graph) {
   const propEdgeColor = document.getElementById("prop-edge-color");
   const propLineStyle = document.getElementById("prop-line-style");
 
+  const analysisSelect = document.getElementById("analysis-select");
+  const btnRunAnalysis = document.getElementById("btn-run-analysis");
+  const btnResetAnalysis = document.getElementById("btn-reset-analysis");
+
   let edgeModeSource = null;
+  let flowModeSource = null;
 
   function setEdgeMode(active) {
     btnAddEdge.classList.toggle("active", active);
@@ -70,6 +77,45 @@ export function initUi(graph) {
     edgeModeSource = null;
     cy.nodes().removeClass("edge-source-pending");
   }
+
+  function setFlowMode(active) {
+    btnRunAnalysis.classList.toggle("active", active);
+    if (active) {
+      modeIndicator.textContent = "Flow: click the source node, then the target node";
+      modeIndicator.classList.remove("hidden");
+    } else {
+      modeIndicator.classList.add("hidden");
+    }
+    flowModeSource = null;
+    cy.nodes().removeClass("edge-source-pending");
+  }
+
+  function runAnalysis(mode) {
+    if (mode === "flow") {
+      setFlowMode(true);
+      return;
+    }
+    const selected = cy.nodes(":selected").filter((n) => !n.data("_groupContainer"));
+    if (selected.length !== 1) {
+      alert("Select exactly one node to analyze.");
+      return;
+    }
+    clearSearchUi();
+    analysis[mode](selected[0].id());
+    btnResetAnalysis.disabled = false;
+  }
+
+  function clearSearchUi() {
+    clearSearch(cy);
+    searchInput.value = "";
+    searchResults.innerHTML = "";
+  }
+
+  btnRunAnalysis.addEventListener("click", () => runAnalysis(analysisSelect.value));
+  btnResetAnalysis.addEventListener("click", () => {
+    analysis.reset();
+    btnResetAnalysis.disabled = true;
+  });
 
   function refreshHistoryButtons() {
     btnUndo.disabled = !history.canUndo();
@@ -177,6 +223,8 @@ export function initUi(graph) {
   function refreshAll() {
     groupManager.sync();
     visibility.apply();
+    analysis.reset();
+    btnResetAnalysis.disabled = true;
     refreshElementList();
     refreshCategoryList();
     refreshGroupList();
@@ -264,6 +312,7 @@ export function initUi(graph) {
     }
     if (e.key === "Escape") {
       setEdgeMode(false);
+      setFlowMode(false);
       return;
     }
     if (mod && e.key.toLowerCase() === "z" && !typing) {
@@ -305,6 +354,24 @@ export function initUi(graph) {
   cy.on("tap", "node", (evt) => {
     const node = evt.target;
     if (node.data("_groupContainer")) return;
+
+    if (btnRunAnalysis.classList.contains("active")) {
+      if (!flowModeSource) {
+        flowModeSource = node;
+        node.addClass("edge-source-pending");
+        modeIndicator.textContent = `Flow source: ${node.data("label")} — now click the target node`;
+      } else if (flowModeSource.id() !== node.id()) {
+        clearSearchUi();
+        const path = analysis.flow(flowModeSource.id(), node.id());
+        setFlowMode(false);
+        if (path) {
+          btnResetAnalysis.disabled = false;
+        } else {
+          alert("No directed path found from the source to the target node.");
+        }
+      }
+      return;
+    }
 
     if (btnAddEdge.classList.contains("active")) {
       if (!edgeModeSource) {
@@ -511,6 +578,8 @@ export function initUi(graph) {
   }
 
   searchInput.addEventListener("input", () => {
+    analysis.reset();
+    btnResetAnalysis.disabled = true;
     const matches = applySearch(cy, searchInput.value);
     if (!searchInput.value.trim()) {
       searchResults.innerHTML = "";

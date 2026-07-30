@@ -78,6 +78,19 @@ export function createGraph(container) {
         },
       },
       {
+        selector: "node.analysis-match",
+        style: {
+          "border-width": 3,
+          "border-color": "#2ecc71",
+        },
+      },
+      {
+        selector: "node.analysis-dim",
+        style: {
+          opacity: 0.15,
+        },
+      },
+      {
         // Group boundary: a compound parent node. Cytoscape auto-sizes and
         // repositions it around its children, so boundaries update
         // automatically as members move, are added, or are removed.
@@ -123,6 +136,20 @@ export function createGraph(container) {
         style: {
           "line-color": "#ff8a4f",
           "target-arrow-color": "#ff8a4f",
+        },
+      },
+      {
+        selector: "edge.analysis-match",
+        style: {
+          "line-color": "#2ecc71",
+          "target-arrow-color": "#2ecc71",
+          width: 3,
+        },
+      },
+      {
+        selector: "edge.analysis-dim",
+        style: {
+          opacity: 0.1,
         },
       },
     ],
