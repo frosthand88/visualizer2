@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>visualizer2</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header id="toolbar">
+    <div class="toolbar-group">
+      <button id="btn-add-node" title="Add Node">+ Node</button>
+      <button id="btn-add-edge" title="Connect two nodes">+ Edge</button>
+      <button id="btn-delete" title="Delete selected">Delete</button>
+      <button id="btn-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+      <button id="btn-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+    </div>
+    <div class="toolbar-group">
+      <label for="layout-select">Layout</label>
+      <select id="layout-select">
+        <option value="grid">Grid</option>
+        <option value="circle">Circle</option>
+        <option value="concentric">Concentric</option>
+        <option value="breadthfirst">Breadthfirst</option>
+        <option value="cose">Cose (force-directed)</option>
+        <option value="top-down">Top-down</option>
+        <option value="left-right">Left-right</option>
+        <option value="radial-outward">Radial outward</option>
+        <option value="radial-inward">Radial inward</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <label for="preset-select">Preset</label>
+      <select id="preset-select">
+        <option value="container">Container</option>
+        <option value="class">Class</option>
+        <option value="er">ER</option>
+        <option value="sitemap">Site Map</option>
+        <option value="usecase">Use Case</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-kb-mode" title="Knowledge Base mode: click a node to open its documentation">KB Mode</button>
+    </div>
+    <div class="toolbar-group">
+      <label for="analysis-select">Analyze</label>
+      <select id="analysis-select">
+        <option value="dependency">Dependency</option>
+        <option value="impact">Impact</option>
+        <option value="flow">Flow</option>
+        <option value="hierarchy">Hierarchy</option>
+      </select>
+      <button id="btn-run-analysis">Run</button>
+      <button id="btn-reset-analysis" disabled>Reset</button>
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-save">Save JSON</button>
+      <button id="btn-load">Load JSON</button>
+      <input type="file" id="file-input" accept="application/json" hidden />
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-save-profile" title="Save this view (positions, camera, visibility, layout, filters) separately from the graph">Save Profile</button>
+      <button id="btn-load-profile" title="Apply a saved view on top of the current graph">Load Profile</button>
+      <input type="file" id="profile-file-input" accept="application/json" hidden />
+    </div>
+    <div class="toolbar-group" id="plugin-toolbar-group"></div>
+    <div class="toolbar-group hidden" id="plugin-io-group">
+      <select id="plugin-importer-select"></select>
+      <button id="btn-plugin-import">Import</button>
+      <input type="file" id="plugin-import-file-input" hidden />
+      <select id="plugin-exporter-select"></select>
+      <button id="btn-plugin-export">Export</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <aside id="left-panel">
+      <h2>Search</h2>
+      <input type="text" id="search-input" placeholder="Search nodes by label..." />
+      <div id="search-results"></div>
+
+      <h2>Categories</h2>
+      <ul id="category-list" class="toggle-list"></ul>
+
+      <h2>Groups</h2>
+      <ul id="group-list" class="toggle-list"></ul>
+      <button id="btn-add-group" type="button">+ Add group</button>
+
+      <h2>Elements</h2>
+      <ul id="element-list"></ul>
+    </aside>
+
+    <main id="canvas-wrap">
+      <div id="cy"></div>
+      <p id="mode-indicator" class="hidden"></p>
+      <p id="canvas-hint">Drag: pan · Shift+drag: box-select · Right-click: menu</p>
+
+      <div id="kb-panel" class="hidden">
+        <div id="kb-header">
+          <button id="kb-back" title="Back">◀</button>
+          <button id="kb-forward" title="Forward">▶</button>
+          <span id="kb-title"></span>
+          <a id="kb-open-new-tab" href="#" target="_blank" rel="noopener noreferrer" class="hidden">Open in new tab ↗</a>
+          <button id="kb-close" title="Close">✕</button>
+        </div>
+        <div id="kb-body">
+          <p id="kb-slow-notice" class="hidden">
+            This page is taking a while to load — some sites block being embedded. Try "Open in new tab" above.
+          </p>
+          <p id="kb-error" class="hidden"></p>
+          <iframe id="kb-iframe" title="Documentation"></iframe>
+        </div>
+      </div>
+    </main>
+
+    <aside id="right-panel">
+      <h2>Properties</h2>
+      <div id="properties-empty">Select a node or edge to edit its properties.</div>
+      <div id="properties-multi" class="hidden"></div>
+      <form id="properties-form" class="hidden">
+        <label for="prop-label">Label</label>
+        <input type="text" id="prop-label" />
+
+        <div id="node-fields">
+          <label>Quick category (current preset)</label>
+          <div id="preset-categories"></div>
+
+          <label for="prop-category">Category</label>
+          <input type="text" id="prop-category" />
+
+          <label for="prop-group">Group</label>
+          <select id="prop-group">
+            <option value="">(none)</option>
+          </select>
+
+          <label for="prop-shape">Shape</label>
+          <select id="prop-shape">
+            <option value="ellipse">Ellipse</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="round-rectangle">Round rectangle</option>
+            <option value="diamond">Diamond</option>
+            <option value="hexagon">Hexagon</option>
+            <option value="triangle">Triangle</option>
+            <option value="star">Star</option>
+          </select>
+
+          <label for="prop-color">Color</label>
+          <input type="color" id="prop-color" />
+
+          <label for="prop-width">Width</label>
+          <input type="number" id="prop-width" min="10" max="300" />
+
+          <label for="prop-height">Height</label>
+          <input type="number" id="prop-height" min="10" max="300" />
+
+          <label for="prop-icon">Icon URL</label>
+          <input type="text" id="prop-icon" placeholder="https://..." />
+
+          <label for="prop-docurl">Documentation URL</label>
+          <input type="text" id="prop-docurl" placeholder="https://..." />
+
+          <div id="plugin-node-fields"></div>
+        </div>
+
+        <div id="edge-fields">
+          <label for="prop-arrow-style">Arrow style</label>
+          <select id="prop-arrow-style">
+            <option value="triangle">Triangle</option>
+            <option value="vee">Vee</option>
+            <option value="tee">Tee</option>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="diamond">Diamond</option>
+            <option value="none">None</option>
+          </select>
+
+          <label for="prop-thickness">Thickness</label>
+          <input type="number" id="prop-thickness" min="1" max="20" />
+
+          <label for="prop-edge-color">Color</label>
+          <input type="color" id="prop-edge-color" />
+
+          <label for="prop-line-style">Line style</label>
+          <select id="prop-line-style">
+            <option value="solid">Solid</option>
+            <option value="dashed">Dashed</option>
+            <option value="dotted">Dotted</option>
+          </select>
+
+          <div id="plugin-edge-fields"></div>
+        </div>
+
+        <p id="prop-id" class="prop-id"></p>
+      </form>
+    </aside>
+  </div>
+
+  <script src="vendor/cytoscape.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
