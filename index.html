@@ -39,6 +39,13 @@
       <input type="text" id="search-input" placeholder="Search nodes by label..." />
       <div id="search-results"></div>
 
+      <h2>Categories</h2>
+      <ul id="category-list" class="toggle-list"></ul>
+
+      <h2>Groups</h2>
+      <ul id="group-list" class="toggle-list"></ul>
+      <button id="btn-add-group" type="button">+ Add group</button>
+
       <h2>Elements</h2>
       <ul id="element-list"></ul>
     </aside>
@@ -62,7 +69,9 @@
           <input type="text" id="prop-category" />
 
           <label for="prop-group">Group</label>
-          <input type="text" id="prop-group" />
+          <select id="prop-group">
+            <option value="">(none)</option>
+          </select>
 
           <label for="prop-shape">Shape</label>
           <select id="prop-shape">

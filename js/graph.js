@@ -78,6 +78,31 @@ export function createGraph(container) {
         },
       },
       {
+        // Group boundary: a compound parent node. Cytoscape auto-sizes and
+        // repositions it around its children, so boundaries update
+        // automatically as members move, are added, or are removed.
+        selector: "node[_groupContainer]",
+        style: {
+          shape: "round-rectangle",
+          width: "auto",
+          height: "auto",
+          padding: "24px",
+          "background-color": "data(color)",
+          "background-image": "none",
+          "background-opacity": 0.12,
+          "border-width": 2,
+          "border-color": "data(color)",
+          "border-opacity": 0.6,
+          label: "data(label)",
+          "text-valign": "top",
+          "text-halign": "center",
+          "text-margin-y": 4,
+          "font-size": 11,
+          "font-weight": "bold",
+          color: "#555",
+        },
+      },
+      {
         selector: "edge",
         style: {
           width: "data(thickness)",
@@ -105,6 +130,12 @@ export function createGraph(container) {
 
   const graph = {
     cy,
+
+    // Excludes synthetic group-boundary compound nodes — those are derived
+    // rendering state, not real graph data.
+    realNodes() {
+      return cy.nodes().filter((n) => !n.data("_groupContainer"));
+    },
 
     addNode(props, position) {
       const id = generateId("n");
@@ -144,8 +175,8 @@ export function createGraph(container) {
     },
 
     toJson() {
-      const nodes = cy.nodes().map((n) => {
-        const { id, ...rest } = n.data();
+      const nodes = graph.realNodes().map((n) => {
+        const { id, parent, ...rest } = n.data();
         return {
           data: { id, ...rest },
           position: { x: Math.round(n.position("x")), y: Math.round(n.position("y")) },

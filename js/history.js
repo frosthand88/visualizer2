@@ -1,20 +1,15 @@
-// Snapshot-based undo/redo. Records the full serialized graph (data +
-// positions only, via graph.toJson) so restoring a snapshot is just a
-// loadJson call — simple and correct, at the cost of coarser granularity
-// than a command-pattern history would give.
+// Snapshot-based undo/redo. `snapshot`/`restore` are supplied by the
+// caller so this stays agnostic to what's in the state (graph elements,
+// groups, ...); restoring is just handing a prior snapshot back.
 
-export function createHistory(graph, { limit = 50 } = {}) {
+export function createHistory({ snapshot, restore }, { limit = 50 } = {}) {
   const undoStack = [];
   const redoStack = [];
   let suppress = false;
 
-  function snapshot() {
-    return JSON.stringify(graph.toJson());
-  }
-
-  function restore(json) {
+  function guardedRestore(json) {
     suppress = true;
-    graph.loadJson(JSON.parse(json));
+    restore(json);
     suppress = false;
   }
 
@@ -30,14 +25,14 @@ export function createHistory(graph, { limit = 50 } = {}) {
     undo() {
       if (undoStack.length === 0) return false;
       redoStack.push(snapshot());
-      restore(undoStack.pop());
+      guardedRestore(undoStack.pop());
       return true;
     },
 
     redo() {
       if (redoStack.length === 0) return false;
       undoStack.push(snapshot());
-      restore(redoStack.pop());
+      guardedRestore(redoStack.pop());
       return true;
     },
 

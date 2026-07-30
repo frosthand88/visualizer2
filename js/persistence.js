@@ -1,7 +1,6 @@
 // JSON save/load — the only persistence mechanism (no backend, no database).
 
-export function saveJson(graph, filename = "graph.json") {
-  const json = graph.toJson();
+export function saveJson(json, filename = "graph.json") {
   const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

@@ -3,6 +3,7 @@
 
 export function applySearch(cy, term) {
   const query = term.trim().toLowerCase();
+  const realNodes = cy.nodes().filter((n) => !n.data("_groupContainer"));
 
   cy.nodes().removeClass("search-match search-dim");
 
@@ -10,8 +11,8 @@ export function applySearch(cy, term) {
     return [];
   }
 
-  const matches = cy.nodes().filter((n) => n.data("label").toLowerCase().includes(query));
-  cy.nodes().addClass("search-dim");
+  const matches = realNodes.filter((n) => n.data("label").toLowerCase().includes(query));
+  realNodes.addClass("search-dim");
   matches.removeClass("search-dim").addClass("search-match");
 
   return matches.map((n) => ({ id: n.data("id"), label: n.data("label") }));
