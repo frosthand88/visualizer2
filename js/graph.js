@@ -3,10 +3,28 @@
 // rather than touching `cy` directly, so later phases can extend the data
 // model here without UI call sites changing.
 
+import { NODE_DEFAULTS, EDGE_DEFAULTS, normalizeNodeData, normalizeEdgeData, computeSegments } from "./model.js";
+
 let nextId = 1;
 
 function generateId(prefix) {
   return `${prefix}${nextId++}`;
+}
+
+function applySegments(edge) {
+  const waypoints = edge.data("waypoints");
+  if (!waypoints || waypoints.length === 0) {
+    edge.data("_segWeights", null);
+    edge.data("_segDistances", null);
+    return;
+  }
+  const { weights, distances } = computeSegments(
+    edge.source().position(),
+    edge.target().position(),
+    waypoints
+  );
+  edge.data("_segWeights", weights.join(" "));
+  edge.data("_segDistances", distances.join(" "));
 }
 
 export function createGraph(container) {
@@ -17,21 +35,23 @@ export function createGraph(container) {
       {
         selector: "node",
         style: {
-          "background-color": "#4f8cff",
+          "background-color": "data(color)",
+          "background-image": (ele) => ele.data("icon") || "none",
+          "background-fit": "contain",
+          shape: "data(shape)",
+          width: "data(width)",
+          height: "data(height)",
           label: "data(label)",
           color: "#1a1a1a",
           "font-size": 11,
           "text-valign": "bottom",
           "text-margin-y": 6,
-          width: 36,
-          height: 36,
         },
       },
       {
         selector: "node:selected",
         style: {
-          "background-color": "#ff8a4f",
-          "border-width": 2,
+          "border-width": 3,
           "border-color": "#c85f24",
         },
       },
@@ -58,11 +78,14 @@ export function createGraph(container) {
       {
         selector: "edge",
         style: {
-          width: 2,
-          "line-color": "#999",
-          "target-arrow-color": "#999",
-          "target-arrow-shape": "triangle",
-          "curve-style": "bezier",
+          width: "data(thickness)",
+          "line-color": "data(color)",
+          "target-arrow-color": "data(color)",
+          "target-arrow-shape": "data(arrowStyle)",
+          "line-style": "data(lineStyle)",
+          "curve-style": (ele) => (ele.data("waypoints") && ele.data("waypoints").length ? "segments" : "bezier"),
+          "segment-weights": (ele) => ele.data("_segWeights") || "0.5",
+          "segment-distances": (ele) => ele.data("_segDistances") || "0",
           label: "data(label)",
           "font-size": 10,
           color: "#555",
@@ -73,61 +96,72 @@ export function createGraph(container) {
         style: {
           "line-color": "#ff8a4f",
           "target-arrow-color": "#ff8a4f",
-          width: 3,
         },
       },
     ],
   });
 
-  return {
+  const graph = {
     cy,
 
-    addNode(label, position) {
+    addNode(props, position) {
       const id = generateId("n");
-      return cy.add({
+      const data = normalizeNodeData({ ...props, id });
+      const node = cy.add({
         group: "nodes",
-        data: { id, label: label || id },
+        data,
         position: position || { x: 100, y: 100 },
       });
+      return node;
     },
 
-    addEdge(sourceId, targetId, label) {
+    addEdge(sourceId, targetId, props) {
       const id = generateId("e");
-      return cy.add({
-        group: "edges",
-        data: { id, source: sourceId, target: targetId, label: label || "" },
-      });
+      const data = normalizeEdgeData({ ...props, id, source: sourceId, target: targetId });
+      const edge = cy.add({ group: "edges", data });
+      applySegments(edge);
+      return edge;
     },
 
     removeElements(eles) {
       cy.remove(eles);
     },
 
-    updateLabel(ele, label) {
-      ele.data("label", label);
+    updateData(ele, key, value) {
+      ele.data(key, value);
+      if (ele.isEdge() && key === "waypoints") {
+        applySegments(ele);
+      }
     },
 
     toJson() {
-      const nodes = cy.nodes().map((n) => ({
-        data: { id: n.data("id"), label: n.data("label") },
-        position: { x: Math.round(n.position("x")), y: Math.round(n.position("y")) },
-      }));
-      const edges = cy.edges().map((e) => ({
-        data: {
-          id: e.data("id"),
-          source: e.data("source"),
-          target: e.data("target"),
-          label: e.data("label") || "",
-        },
-      }));
-      return { format: "visualizer2/graph", version: 1, nodes, edges };
+      const nodes = cy.nodes().map((n) => {
+        const { id, ...rest } = n.data();
+        return {
+          data: { id, ...rest },
+          position: { x: Math.round(n.position("x")), y: Math.round(n.position("y")) },
+        };
+      });
+      const edges = cy.edges().map((e) => {
+        const { id, source, target, _segWeights, _segDistances, ...rest } = e.data();
+        return { data: { id, source, target, ...rest } };
+      });
+      return { format: "visualizer2/graph", version: 2, nodes, edges };
     },
 
     loadJson(json) {
       cy.elements().remove();
-      const nodes = (json.nodes || []).map((n) => ({ group: "nodes", ...n }));
-      const edges = (json.edges || []).map((e) => ({ group: "edges", ...e }));
+      const nodes = (json.nodes || []).map((n) => ({
+        group: "nodes",
+        data: normalizeNodeData(n.data || {}),
+        position: n.position || { x: 100, y: 100 },
+      }));
+      const edges = (json.edges || []).map((e) => ({
+        group: "edges",
+        data: normalizeEdgeData(e.data || {}),
+      }));
       cy.add([...nodes, ...edges]);
+      cy.edges().forEach(applySegments);
 
       const usedIds = [...nodes, ...edges]
         .map((el) => el.data && el.data.id)
@@ -137,4 +171,8 @@ export function createGraph(container) {
       nextId = usedIds.length ? Math.max(...usedIds) + 1 : 1;
     },
   };
+
+  return graph;
 }
+
+export { NODE_DEFAULTS, EDGE_DEFAULTS };

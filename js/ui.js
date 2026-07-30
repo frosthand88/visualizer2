@@ -20,6 +20,22 @@ export function initUi(graph) {
   const propertiesForm = document.getElementById("properties-form");
   const propLabel = document.getElementById("prop-label");
   const propId = document.getElementById("prop-id");
+  const nodeFields = document.getElementById("node-fields");
+  const edgeFields = document.getElementById("edge-fields");
+
+  const propCategory = document.getElementById("prop-category");
+  const propGroup = document.getElementById("prop-group");
+  const propShape = document.getElementById("prop-shape");
+  const propColor = document.getElementById("prop-color");
+  const propWidth = document.getElementById("prop-width");
+  const propHeight = document.getElementById("prop-height");
+  const propIcon = document.getElementById("prop-icon");
+  const propDocUrl = document.getElementById("prop-docurl");
+
+  const propArrowStyle = document.getElementById("prop-arrow-style");
+  const propThickness = document.getElementById("prop-thickness");
+  const propEdgeColor = document.getElementById("prop-edge-color");
+  const propLineStyle = document.getElementById("prop-line-style");
 
   let edgeModeSource = null;
 
@@ -43,7 +59,7 @@ export function initUi(graph) {
       x: (extent.x1 + extent.x2) / 2 + (Math.random() - 0.5) * 60,
       y: (extent.y1 + extent.y2) / 2 + (Math.random() - 0.5) * 60,
     };
-    const node = graph.addNode("New node", position);
+    const node = graph.addNode({ label: "New node" }, position);
     node.select();
     refreshElementList();
     showProperties(node);
@@ -111,9 +127,12 @@ export function initUi(graph) {
         node.addClass("edge-source-pending");
         modeIndicator.textContent = `Source: ${node.data("label")} — now click a target node`;
       } else if (edgeModeSource.id() !== node.id()) {
-        graph.addEdge(edgeModeSource.id(), node.id());
+        const edge = graph.addEdge(edgeModeSource.id(), node.id(), {});
         refreshElementList();
         setEdgeMode(false);
+        cy.elements().unselect();
+        edge.select();
+        showProperties(edge);
       }
       return;
     }
@@ -142,6 +161,26 @@ export function initUi(graph) {
     propertiesForm.classList.remove("hidden");
     propLabel.value = ele.data("label") || "";
     propId.textContent = `id: ${ele.data("id")}`;
+
+    if (ele.isNode()) {
+      nodeFields.classList.remove("hidden");
+      edgeFields.classList.add("hidden");
+      propCategory.value = ele.data("category") || "";
+      propGroup.value = ele.data("group") || "";
+      propShape.value = ele.data("shape") || "ellipse";
+      propColor.value = ele.data("color") || "#4f8cff";
+      propWidth.value = ele.data("width") || 36;
+      propHeight.value = ele.data("height") || 36;
+      propIcon.value = ele.data("icon") || "";
+      propDocUrl.value = ele.data("docUrl") || "";
+    } else {
+      nodeFields.classList.add("hidden");
+      edgeFields.classList.remove("hidden");
+      propArrowStyle.value = ele.data("arrowStyle") || "triangle";
+      propThickness.value = ele.data("thickness") || 2;
+      propEdgeColor.value = ele.data("color") || "#999999";
+      propLineStyle.value = ele.data("lineStyle") || "solid";
+    }
   }
 
   function hideProperties() {
@@ -150,11 +189,28 @@ export function initUi(graph) {
     propertiesForm.classList.add("hidden");
   }
 
-  propLabel.addEventListener("input", () => {
-    if (!activeElement) return;
-    graph.updateLabel(activeElement, propLabel.value);
-    refreshElementList();
-  });
+  function bindField(el, key, transform = (v) => v) {
+    el.addEventListener("input", () => {
+      if (!activeElement) return;
+      graph.updateData(activeElement, key, transform(el.value));
+      if (key === "label") refreshElementList();
+    });
+  }
+
+  bindField(propLabel, "label");
+  bindField(propCategory, "category");
+  bindField(propGroup, "group");
+  bindField(propShape, "shape");
+  bindField(propColor, "color");
+  bindField(propWidth, "width", Number);
+  bindField(propHeight, "height", Number);
+  bindField(propIcon, "icon");
+  bindField(propDocUrl, "docUrl");
+
+  bindField(propArrowStyle, "arrowStyle");
+  bindField(propThickness, "thickness", Number);
+  bindField(propEdgeColor, "color");
+  bindField(propLineStyle, "lineStyle");
 
   // --- Left panel: element list + search ------------------------------
 

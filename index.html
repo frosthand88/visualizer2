@@ -52,6 +52,67 @@
       <form id="properties-form" class="hidden">
         <label for="prop-label">Label</label>
         <input type="text" id="prop-label" />
+
+        <div id="node-fields">
+          <label for="prop-category">Category</label>
+          <input type="text" id="prop-category" />
+
+          <label for="prop-group">Group</label>
+          <input type="text" id="prop-group" />
+
+          <label for="prop-shape">Shape</label>
+          <select id="prop-shape">
+            <option value="ellipse">Ellipse</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="round-rectangle">Round rectangle</option>
+            <option value="diamond">Diamond</option>
+            <option value="hexagon">Hexagon</option>
+            <option value="triangle">Triangle</option>
+            <option value="star">Star</option>
+          </select>
+
+          <label for="prop-color">Color</label>
+          <input type="color" id="prop-color" />
+
+          <label for="prop-width">Width</label>
+          <input type="number" id="prop-width" min="10" max="300" />
+
+          <label for="prop-height">Height</label>
+          <input type="number" id="prop-height" min="10" max="300" />
+
+          <label for="prop-icon">Icon URL</label>
+          <input type="text" id="prop-icon" placeholder="https://..." />
+
+          <label for="prop-docurl">Documentation URL</label>
+          <input type="text" id="prop-docurl" placeholder="https://..." />
+        </div>
+
+        <div id="edge-fields">
+          <label for="prop-arrow-style">Arrow style</label>
+          <select id="prop-arrow-style">
+            <option value="triangle">Triangle</option>
+            <option value="vee">Vee</option>
+            <option value="tee">Tee</option>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="diamond">Diamond</option>
+            <option value="none">None</option>
+          </select>
+
+          <label for="prop-thickness">Thickness</label>
+          <input type="number" id="prop-thickness" min="1" max="20" />
+
+          <label for="prop-edge-color">Color</label>
+          <input type="color" id="prop-edge-color" />
+
+          <label for="prop-line-style">Line style</label>
+          <select id="prop-line-style">
+            <option value="solid">Solid</option>
+            <option value="dashed">Dashed</option>
+            <option value="dotted">Dotted</option>
+          </select>
+        </div>
+
         <p id="prop-id" class="prop-id"></p>
       </form>
     </aside>
