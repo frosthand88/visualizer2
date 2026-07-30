@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>visualizer2</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header id="toolbar">
+    <div class="toolbar-group">
+      <button id="btn-add-node" title="Add Node">+ Node</button>
+      <button id="btn-add-edge" title="Connect two nodes">+ Edge</button>
+      <button id="btn-delete" title="Delete selected">Delete</button>
+    </div>
+    <div class="toolbar-group">
+      <label for="layout-select">Layout</label>
+      <select id="layout-select">
+        <option value="grid">Grid</option>
+        <option value="circle">Circle</option>
+        <option value="concentric">Concentric</option>
+        <option value="breadthfirst">Breadthfirst</option>
+        <option value="cose">Cose (force-directed)</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-save">Save JSON</button>
+      <button id="btn-load">Load JSON</button>
+      <input type="file" id="file-input" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <div id="app">
+    <aside id="left-panel">
+      <h2>Search</h2>
+      <input type="text" id="search-input" placeholder="Search nodes by label..." />
+      <div id="search-results"></div>
+
+      <h2>Elements</h2>
+      <ul id="element-list"></ul>
+    </aside>
+
+    <main id="canvas-wrap">
+      <div id="cy"></div>
+      <p id="mode-indicator" class="hidden"></p>
+    </main>
+
+    <aside id="right-panel">
+      <h2>Properties</h2>
+      <div id="properties-empty">Select a node or edge to edit its properties.</div>
+      <form id="properties-form" class="hidden">
+        <label for="prop-label">Label</label>
+        <input type="text" id="prop-label" />
+        <p id="prop-id" class="prop-id"></p>
+      </form>
+    </aside>
+  </div>
+
+  <script src="vendor/cytoscape.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
