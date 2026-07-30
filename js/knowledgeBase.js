@@ -22,7 +22,7 @@ export function validateDocUrl(raw) {
   return { valid: true, href: url.href };
 }
 
-export function createKnowledgeBase(graph) {
+export function createKnowledgeBase(graph, { onOpen } = {}) {
   const panel = document.getElementById("kb-panel");
   const iframe = document.getElementById("kb-iframe");
   const titleEl = document.getElementById("kb-title");
@@ -56,6 +56,7 @@ export function createKnowledgeBase(graph) {
     }
 
     panel.classList.remove("hidden");
+    if (onOpen) onOpen();
     titleEl.textContent = node.data("label") || nodeId;
     const result = validateDocUrl(node.data("docUrl"));
 
@@ -110,6 +111,9 @@ export function createKnowledgeBase(graph) {
         return;
       }
       location.hash = hashFor(nodeId);
+    },
+    close() {
+      location.hash = "";
     },
     isOpen: () => !panel.classList.contains("hidden"),
   };

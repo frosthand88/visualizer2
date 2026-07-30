@@ -69,7 +69,13 @@ export function initUi(graph, plugins) {
   const btnRunAnalysis = document.getElementById("btn-run-analysis");
   const btnResetAnalysis = document.getElementById("btn-reset-analysis");
   const btnKbMode = document.getElementById("btn-kb-mode");
-  const knowledgeBase = createKnowledgeBase(graph);
+
+  function closeAllPluginPanels() {
+    document.querySelectorAll(".plugin-panel").forEach((p) => p.classList.add("hidden"));
+    document.querySelectorAll("#plugin-toolbar-group button").forEach((b) => b.classList.remove("active"));
+  }
+
+  const knowledgeBase = createKnowledgeBase(graph, { onOpen: closeAllPluginPanels });
 
   const pluginToolbarGroup = document.getElementById("plugin-toolbar-group");
   const pluginIoGroup = document.getElementById("plugin-io-group");
@@ -875,11 +881,70 @@ export function initUi(graph, plugins) {
     });
   }
 
+  const canvasWrap = document.getElementById("canvas-wrap");
+
+  function renderPluginPanels() {
+    plugins.panels.forEach((def) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = def.label;
+      pluginToolbarGroup.appendChild(btn);
+
+      const panelEl = document.createElement("div");
+      panelEl.className = "plugin-panel hidden";
+      panelEl.id = `plugin-panel-${def.id}`;
+
+      const header = document.createElement("div");
+      header.className = "plugin-panel-header";
+      const title = document.createElement("span");
+      title.className = "plugin-panel-title";
+      title.textContent = def.label;
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.textContent = "✕";
+      header.append(title, closeBtn);
+
+      const body = document.createElement("div");
+      body.className = "plugin-panel-body";
+
+      panelEl.append(header, body);
+      canvasWrap.appendChild(panelEl);
+
+      let rendered = false;
+      function openPanel() {
+        closeAllPluginPanels();
+        knowledgeBase.close();
+        panelEl.classList.remove("hidden");
+        btn.classList.add("active");
+        if (!rendered) {
+          rendered = true;
+          def.render(body, {
+            graph,
+            cy,
+            groupManager,
+            recordHistory: () => history.record(),
+            refresh: () => refreshAll(),
+          });
+        }
+      }
+      function closePanel() {
+        panelEl.classList.add("hidden");
+        btn.classList.remove("active");
+      }
+      btn.addEventListener("click", () => {
+        if (panelEl.classList.contains("hidden")) openPanel();
+        else closePanel();
+      });
+      closeBtn.addEventListener("click", closePanel);
+    });
+  }
+
   function initPlugins() {
     renderPluginToolbarButtons();
     renderPluginFields(pluginNodeFields, plugins.nodeProperties);
     renderPluginFields(pluginEdgeFields, plugins.edgeProperties);
     wirePluginImportExport();
+    renderPluginPanels();
     plugins.analysisModes.forEach((mode) => {
       const o = document.createElement("option");
       o.value = mode.id;
