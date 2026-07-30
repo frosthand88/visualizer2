@@ -6,11 +6,12 @@ import { showContextMenu } from "./contextMenu.js";
 import { createGroupManager } from "./groups.js";
 import { createVisibility } from "./visibility.js";
 import { createAnalysis } from "./analysis.js";
+import { createProfileManager } from "./profile.js";
 
 export function initUi(graph) {
   const { cy } = graph;
   const groupManager = createGroupManager(graph);
-  const visibility = createVisibility(graph);
+  const visibility = createVisibility(graph, groupManager);
   const analysis = createAnalysis(graph);
   const history = createHistory({
     snapshot: () => JSON.stringify({ ...graph.toJson(), groups: groupManager.toJson() }),
@@ -29,6 +30,9 @@ export function initUi(graph) {
   const btnSave = document.getElementById("btn-save");
   const btnLoad = document.getElementById("btn-load");
   const fileInput = document.getElementById("file-input");
+  const btnSaveProfile = document.getElementById("btn-save-profile");
+  const btnLoadProfile = document.getElementById("btn-load-profile");
+  const profileFileInput = document.getElementById("profile-file-input");
   const layoutSelect = document.getElementById("layout-select");
   const modeIndicator = document.getElementById("mode-indicator");
   const searchInput = document.getElementById("search-input");
@@ -62,6 +66,21 @@ export function initUi(graph) {
   const analysisSelect = document.getElementById("analysis-select");
   const btnRunAnalysis = document.getElementById("btn-run-analysis");
   const btnResetAnalysis = document.getElementById("btn-reset-analysis");
+
+  const profileManager = createProfileManager({
+    graph,
+    visibility,
+    groupManager,
+    getLayoutName: () => layoutSelect.value,
+    setLayoutName: (name) => {
+      if ([...layoutSelect.options].some((o) => o.value === name)) layoutSelect.value = name;
+    },
+    getFilterText: () => searchInput.value,
+    setFilterText: (text) => {
+      searchInput.value = text;
+      performSearch();
+    },
+  });
 
   let edgeModeSource = null;
   let flowModeSource = null;
@@ -154,6 +173,20 @@ export function initUi(graph) {
     groupManager.list().forEach((g) => {
       const li = document.createElement("li");
 
+      const expandBtn = document.createElement("button");
+      expandBtn.type = "button";
+      expandBtn.className = "expand-btn";
+      expandBtn.textContent = groupManager.isExpanded(g.id) ? "▾" : "▸";
+      expandBtn.title = groupManager.isExpanded(g.id) ? "Collapse group" : "Expand group";
+      expandBtn.addEventListener("click", () => {
+        history.record();
+        groupManager.toggleExpanded(g.id);
+        visibility.apply();
+        refreshElementList();
+        refreshGroupList();
+        refreshHistoryButtons();
+      });
+
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !visibility.isGroupHidden(g.id);
@@ -191,7 +224,7 @@ export function initUi(graph) {
         refreshAll();
       });
 
-      li.append(checkbox, color, nameInput, removeBtn);
+      li.append(expandBtn, checkbox, color, nameInput, removeBtn);
       groupList.appendChild(li);
     });
     return groupManager.list();
@@ -577,7 +610,7 @@ export function initUi(graph) {
     });
   }
 
-  searchInput.addEventListener("input", () => {
+  function performSearch() {
     analysis.reset();
     btnResetAnalysis.disabled = true;
     const matches = applySearch(cy, searchInput.value);
@@ -588,6 +621,29 @@ export function initUi(graph) {
     searchResults.innerHTML = matches.length
       ? `${matches.length} match${matches.length === 1 ? "" : "es"}`
       : "No matches";
+  }
+
+  searchInput.addEventListener("input", performSearch);
+
+  btnSaveProfile.addEventListener("click", () => saveJson(profileManager.toJson(), "profile.json"));
+
+  btnLoadProfile.addEventListener("click", () => profileFileInput.click());
+
+  profileFileInput.addEventListener("change", async () => {
+    const file = profileFileInput.files[0];
+    profileFileInput.value = "";
+    if (!file) return;
+    try {
+      const json = await loadJsonFile(file);
+      history.record();
+      profileManager.apply(json);
+      refreshElementList();
+      refreshCategoryList();
+      refreshGroupList();
+      refreshHistoryButtons();
+    } catch (err) {
+      alert(err.message);
+    }
   });
 
   refreshAll();

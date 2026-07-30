@@ -167,6 +167,17 @@ body {
   flex-shrink: 0;
 }
 
+.toggle-list li .expand-btn {
+  border: none;
+  background: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  width: 14px;
+  padding: 0;
+}
+
 #btn-add-group {
   width: 100%;
   padding: 5px;

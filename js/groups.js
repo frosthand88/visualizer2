@@ -39,15 +39,17 @@ export function createGroupManager(graph) {
         return;
       }
 
+      const label = g.expanded === false ? `${g.label} (${members.length})` : g.label;
+
       if (container.length === 0) {
         container = cy.add({
           group: "nodes",
-          data: { id: cid, label: g.label, color: g.color, groupId: g.id, _groupContainer: true },
+          data: { id: cid, label, color: g.color, groupId: g.id, _groupContainer: true },
           selectable: false,
           grabbable: false,
         });
       } else {
-        container.data("label", g.label);
+        container.data("label", label);
         container.data("color", g.color);
       }
 
@@ -70,7 +72,7 @@ export function createGroupManager(graph) {
 
     add(label) {
       const id = `g${nextNum++}`;
-      groups.push({ id, label: label || id, color: "#8a8f98" });
+      groups.push({ id, label: label || id, color: "#8a8f98", expanded: true });
       sync();
       return id;
     },
@@ -99,12 +101,36 @@ export function createGroupManager(graph) {
       sync();
     },
 
+    // Collapsed groups keep their boundary visible but hide member detail —
+    // "expanded state" is view/profile concern (Phase 7), not graph data,
+    // so it's tracked here at runtime but deliberately left out of toJson().
+    isExpanded(id) {
+      const g = groups.find((g) => g.id === id);
+      return !g || g.expanded !== false;
+    },
+
+    setExpanded(id, expanded) {
+      const g = groups.find((g) => g.id === id);
+      if (g) {
+        g.expanded = expanded;
+        sync();
+      }
+    },
+
+    toggleExpanded(id) {
+      const g = groups.find((g) => g.id === id);
+      if (g) {
+        g.expanded = g.expanded === false;
+        sync();
+      }
+    },
+
     sync,
 
-    toJson: () => groups.map((g) => ({ ...g })),
+    toJson: () => groups.map(({ id, label, color }) => ({ id, label, color })),
 
     loadJson(data) {
-      groups = (data || []).map((g) => ({ id: g.id, label: g.label || g.id, color: g.color || "#8a8f98" }));
+      groups = (data || []).map((g) => ({ id: g.id, label: g.label || g.id, color: g.color || "#8a8f98", expanded: true }));
       const nums = groups.map((g) => parseInt(String(g.id).replace(/\D/g, ""), 10)).filter((n) => !Number.isNaN(n));
       nextNum = nums.length ? Math.max(...nums) + 1 : 1;
       sync();
