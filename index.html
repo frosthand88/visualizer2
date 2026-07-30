@@ -31,6 +31,9 @@
       </select>
     </div>
     <div class="toolbar-group">
+      <button id="btn-kb-mode" title="Knowledge Base mode: click a node to open its documentation">KB Mode</button>
+    </div>
+    <div class="toolbar-group">
       <label for="analysis-select">Analyze</label>
       <select id="analysis-select">
         <option value="dependency">Dependency</option>
@@ -74,6 +77,23 @@
       <div id="cy"></div>
       <p id="mode-indicator" class="hidden"></p>
       <p id="canvas-hint">Drag: pan · Shift+drag: box-select · Right-click: menu</p>
+
+      <div id="kb-panel" class="hidden">
+        <div id="kb-header">
+          <button id="kb-back" title="Back">◀</button>
+          <button id="kb-forward" title="Forward">▶</button>
+          <span id="kb-title"></span>
+          <a id="kb-open-new-tab" href="#" target="_blank" rel="noopener noreferrer" class="hidden">Open in new tab ↗</a>
+          <button id="kb-close" title="Close">✕</button>
+        </div>
+        <div id="kb-body">
+          <p id="kb-slow-notice" class="hidden">
+            This page is taking a while to load — some sites block being embedded. Try "Open in new tab" above.
+          </p>
+          <p id="kb-error" class="hidden"></p>
+          <iframe id="kb-iframe" title="Documentation"></iframe>
+        </div>
+      </div>
     </main>
 
     <aside id="right-panel">

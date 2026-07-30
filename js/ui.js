@@ -7,6 +7,7 @@ import { createGroupManager } from "./groups.js";
 import { createVisibility } from "./visibility.js";
 import { createAnalysis } from "./analysis.js";
 import { createProfileManager } from "./profile.js";
+import { createKnowledgeBase } from "./knowledgeBase.js";
 
 export function initUi(graph) {
   const { cy } = graph;
@@ -66,6 +67,8 @@ export function initUi(graph) {
   const analysisSelect = document.getElementById("analysis-select");
   const btnRunAnalysis = document.getElementById("btn-run-analysis");
   const btnResetAnalysis = document.getElementById("btn-reset-analysis");
+  const btnKbMode = document.getElementById("btn-kb-mode");
+  const knowledgeBase = createKnowledgeBase(graph);
 
   const profileManager = createProfileManager({
     graph,
@@ -88,6 +91,8 @@ export function initUi(graph) {
   function setEdgeMode(active) {
     btnAddEdge.classList.toggle("active", active);
     if (active) {
+      setFlowMode(false);
+      setKbMode(false);
       modeIndicator.textContent = "Click a source node, then a target node";
       modeIndicator.classList.remove("hidden");
     } else {
@@ -100,6 +105,8 @@ export function initUi(graph) {
   function setFlowMode(active) {
     btnRunAnalysis.classList.toggle("active", active);
     if (active) {
+      setEdgeMode(false);
+      setKbMode(false);
       modeIndicator.textContent = "Flow: click the source node, then the target node";
       modeIndicator.classList.remove("hidden");
     } else {
@@ -108,6 +115,20 @@ export function initUi(graph) {
     flowModeSource = null;
     cy.nodes().removeClass("edge-source-pending");
   }
+
+  function setKbMode(active) {
+    btnKbMode.classList.toggle("active", active);
+    if (active) {
+      setEdgeMode(false);
+      setFlowMode(false);
+      modeIndicator.textContent = "Knowledge Base: click a node to open its documentation";
+      modeIndicator.classList.remove("hidden");
+    } else {
+      modeIndicator.classList.add("hidden");
+    }
+  }
+
+  btnKbMode.addEventListener("click", () => setKbMode(!btnKbMode.classList.contains("active")));
 
   function runAnalysis(mode) {
     if (mode === "flow") {
@@ -346,6 +367,7 @@ export function initUi(graph) {
     if (e.key === "Escape") {
       setEdgeMode(false);
       setFlowMode(false);
+      setKbMode(false);
       return;
     }
     if (mod && e.key.toLowerCase() === "z" && !typing) {
@@ -387,6 +409,11 @@ export function initUi(graph) {
   cy.on("tap", "node", (evt) => {
     const node = evt.target;
     if (node.data("_groupContainer")) return;
+
+    if (btnKbMode.classList.contains("active")) {
+      knowledgeBase.open(node.id());
+      return;
+    }
 
     if (btnRunAnalysis.classList.contains("active")) {
       if (!flowModeSource) {
