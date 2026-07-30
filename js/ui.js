@@ -249,7 +249,7 @@ export function initUi(graph) {
   });
 
   layoutSelect.addEventListener("change", () => {
-    runLayout(cy, layoutSelect.value);
+    runLayout(graph, layoutSelect.value);
   });
 
   // --- Keyboard shortcuts ------------------------------------------------
