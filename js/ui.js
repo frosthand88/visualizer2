@@ -1,13 +1,18 @@
 import { saveJson, loadJsonFile } from "./persistence.js";
 import { applySearch, clearSearch } from "./search.js";
 import { runLayout } from "./layouts.js";
+import { createHistory } from "./history.js";
+import { showContextMenu } from "./contextMenu.js";
 
 export function initUi(graph) {
   const { cy } = graph;
+  const history = createHistory(graph);
 
   const btnAddNode = document.getElementById("btn-add-node");
   const btnAddEdge = document.getElementById("btn-add-edge");
   const btnDelete = document.getElementById("btn-delete");
+  const btnUndo = document.getElementById("btn-undo");
+  const btnRedo = document.getElementById("btn-redo");
   const btnSave = document.getElementById("btn-save");
   const btnLoad = document.getElementById("btn-load");
   const fileInput = document.getElementById("file-input");
@@ -17,6 +22,7 @@ export function initUi(graph) {
   const searchResults = document.getElementById("search-results");
   const elementList = document.getElementById("element-list");
   const propertiesEmpty = document.getElementById("properties-empty");
+  const propertiesMulti = document.getElementById("properties-multi");
   const propertiesForm = document.getElementById("properties-form");
   const propLabel = document.getElementById("prop-label");
   const propId = document.getElementById("prop-id");
@@ -37,6 +43,11 @@ export function initUi(graph) {
   const propEdgeColor = document.getElementById("prop-edge-color");
   const propLineStyle = document.getElementById("prop-line-style");
 
+  const allPropFields = [
+    propLabel, propCategory, propGroup, propShape, propColor, propWidth, propHeight, propIcon, propDocUrl,
+    propArrowStyle, propThickness, propEdgeColor, propLineStyle,
+  ];
+
   let edgeModeSource = null;
 
   function setEdgeMode(active) {
@@ -51,31 +62,60 @@ export function initUi(graph) {
     cy.nodes().removeClass("edge-source-pending");
   }
 
+  function refreshHistoryButtons() {
+    btnUndo.disabled = !history.canUndo();
+    btnRedo.disabled = !history.canRedo();
+  }
+
+  function isTypingInField() {
+    const tag = document.activeElement && document.activeElement.tagName;
+    return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+  }
+
   // --- Toolbar ---------------------------------------------------------
 
   btnAddNode.addEventListener("click", () => {
+    history.record();
     const extent = cy.extent();
     const position = {
       x: (extent.x1 + extent.x2) / 2 + (Math.random() - 0.5) * 60,
       y: (extent.y1 + extent.y2) / 2 + (Math.random() - 0.5) * 60,
     };
     const node = graph.addNode({ label: "New node" }, position);
+    cy.elements().unselect();
     node.select();
     refreshElementList();
-    showProperties(node);
+    refreshHistoryButtons();
   });
 
   btnAddEdge.addEventListener("click", () => {
     setEdgeMode(!btnAddEdge.classList.contains("active"));
   });
 
-  btnDelete.addEventListener("click", () => {
+  btnDelete.addEventListener("click", () => deleteSelection());
+
+  btnUndo.addEventListener("click", () => {
+    if (history.undo()) afterHistoryChange();
+  });
+
+  btnRedo.addEventListener("click", () => {
+    if (history.redo()) afterHistoryChange();
+  });
+
+  function afterHistoryChange() {
+    refreshElementList();
+    updatePropertiesFromSelection();
+    refreshHistoryButtons();
+  }
+
+  function deleteSelection() {
     const selected = cy.$(":selected");
     if (selected.length === 0) return;
+    history.record();
     graph.removeElements(selected);
     refreshElementList();
-    hideProperties();
-  });
+    refreshHistoryButtons();
+  }
 
   btnSave.addEventListener("click", () => saveJson(graph));
 
@@ -87,9 +127,10 @@ export function initUi(graph) {
     if (!file) return;
     try {
       const json = await loadJsonFile(file);
+      history.record();
       graph.loadJson(json);
       refreshElementList();
-      hideProperties();
+      refreshHistoryButtons();
       clearSearch(cy);
       searchInput.value = "";
       searchResults.innerHTML = "";
@@ -102,19 +143,54 @@ export function initUi(graph) {
     runLayout(cy, layoutSelect.value);
   });
 
+  // --- Keyboard shortcuts ------------------------------------------------
+
   document.addEventListener("keydown", (e) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement === document.body) {
-      const selected = cy.$(":selected");
-      if (selected.length > 0) {
-        graph.removeElements(selected);
-        refreshElementList();
-        hideProperties();
-      }
+    const typing = isTypingInField();
+    const mod = e.ctrlKey || e.metaKey;
+
+    if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
+      deleteSelection();
+      return;
     }
     if (e.key === "Escape") {
       setEdgeMode(false);
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "z" && !typing) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        if (history.redo()) afterHistoryChange();
+      } else if (history.undo()) {
+        afterHistoryChange();
+      }
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "y" && !typing) {
+      e.preventDefault();
+      if (history.redo()) afterHistoryChange();
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "a" && !typing) {
+      e.preventDefault();
+      cy.elements().select();
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "d" && !typing) {
+      e.preventDefault();
+      duplicateSelectedNodes();
     }
   });
+
+  function duplicateSelectedNodes() {
+    const nodes = cy.nodes(":selected");
+    if (nodes.length === 0) return;
+    history.record();
+    cy.elements().unselect();
+    nodes.forEach((n) => graph.duplicateNode(n).select());
+    refreshElementList();
+    refreshHistoryButtons();
+  }
 
   // --- Canvas interaction ------------------------------------------------
 
@@ -127,38 +203,104 @@ export function initUi(graph) {
         node.addClass("edge-source-pending");
         modeIndicator.textContent = `Source: ${node.data("label")} — now click a target node`;
       } else if (edgeModeSource.id() !== node.id()) {
+        history.record();
         const edge = graph.addEdge(edgeModeSource.id(), node.id(), {});
         refreshElementList();
+        refreshHistoryButtons();
         setEdgeMode(false);
         cy.elements().unselect();
         edge.select();
-        showProperties(edge);
       }
-      return;
     }
-
-    showProperties(node);
   });
 
-  cy.on("tap", "edge", (evt) => {
-    if (btnAddEdge.classList.contains("active")) return;
-    showProperties(evt.target);
+  cy.on("grab", "node", () => history.record());
+  cy.on("dragfree", "node", () => refreshHistoryButtons());
+
+  cy.on("select unselect", () => {
+    updatePropertiesFromSelection();
+    syncElementListSelection();
   });
 
-  cy.on("tap", (evt) => {
-    if (evt.target === cy) {
-      hideProperties();
-    }
+  // --- Context menus ----------------------------------------------------
+
+  cy.on("cxttap", "node", (evt) => {
+    const node = evt.target;
+    showContextMenu(evt.originalEvent.clientX, evt.originalEvent.clientY, [
+      {
+        label: "Rename",
+        action: () => {
+          cy.elements().unselect();
+          node.select();
+          propLabel.focus();
+        },
+      },
+      { label: "Duplicate (Ctrl+D)", action: () => { cy.elements().unselect(); node.select(); duplicateSelectedNodes(); } },
+      {
+        label: "Delete",
+        action: () => {
+          cy.elements().unselect();
+          node.select();
+          deleteSelection();
+        },
+      },
+    ]);
+  });
+
+  cy.on("cxttap", "edge", (evt) => {
+    const edge = evt.target;
+    showContextMenu(evt.originalEvent.clientX, evt.originalEvent.clientY, [
+      {
+        label: "Delete",
+        action: () => {
+          cy.elements().unselect();
+          edge.select();
+          deleteSelection();
+        },
+      },
+    ]);
+  });
+
+  cy.on("cxttap", (evt) => {
+    if (evt.target !== cy) return;
+    const position = evt.position;
+    showContextMenu(evt.originalEvent.clientX, evt.originalEvent.clientY, [
+      {
+        label: "Add node here",
+        action: () => {
+          history.record();
+          const node = graph.addNode({ label: "New node" }, position);
+          cy.elements().unselect();
+          node.select();
+          refreshElementList();
+          refreshHistoryButtons();
+        },
+      },
+    ]);
   });
 
   // --- Properties panel ----------------------------------------------
 
-  let activeElement = null;
+  function updatePropertiesFromSelection() {
+    const selected = cy.$(":selected");
+    if (selected.length === 0) {
+      propertiesEmpty.classList.remove("hidden");
+      propertiesMulti.classList.add("hidden");
+      propertiesForm.classList.add("hidden");
+    } else if (selected.length === 1) {
+      propertiesEmpty.classList.add("hidden");
+      propertiesMulti.classList.add("hidden");
+      propertiesForm.classList.remove("hidden");
+      showProperties(selected[0]);
+    } else {
+      propertiesEmpty.classList.add("hidden");
+      propertiesForm.classList.add("hidden");
+      propertiesMulti.classList.remove("hidden");
+      propertiesMulti.textContent = `${selected.length} elements selected`;
+    }
+  }
 
   function showProperties(ele) {
-    activeElement = ele;
-    propertiesEmpty.classList.add("hidden");
-    propertiesForm.classList.remove("hidden");
     propLabel.value = ele.data("label") || "";
     propId.textContent = `id: ${ele.data("id")}`;
 
@@ -183,16 +325,25 @@ export function initUi(graph) {
     }
   }
 
-  function hideProperties() {
-    activeElement = null;
-    propertiesEmpty.classList.remove("hidden");
-    propertiesForm.classList.add("hidden");
+  function activeElement() {
+    const selected = cy.$(":selected");
+    return selected.length === 1 ? selected[0] : null;
   }
 
   function bindField(el, key, transform = (v) => v) {
+    let recorded = false;
+    el.addEventListener("focus", () => {
+      recorded = false;
+    });
     el.addEventListener("input", () => {
-      if (!activeElement) return;
-      graph.updateData(activeElement, key, transform(el.value));
+      const ele = activeElement();
+      if (!ele) return;
+      if (!recorded) {
+        history.record();
+        recorded = true;
+        refreshHistoryButtons();
+      }
+      graph.updateData(ele, key, transform(el.value));
       if (key === "label") refreshElementList();
     });
   }
@@ -220,12 +371,20 @@ export function initUi(graph) {
       const li = document.createElement("li");
       const kind = ele.isNode() ? "Node" : "Edge";
       li.textContent = `${kind}: ${ele.data("label") || "(no label)"}`;
-      li.addEventListener("click", () => {
-        cy.elements().unselect();
+      li.dataset.eleId = ele.id();
+      li.classList.toggle("selected", ele.selected());
+      li.addEventListener("click", (evt) => {
+        if (!evt.shiftKey && !evt.metaKey && !evt.ctrlKey) cy.elements().unselect();
         ele.select();
-        showProperties(ele);
       });
       elementList.appendChild(li);
+    });
+  }
+
+  function syncElementListSelection() {
+    elementList.querySelectorAll("li").forEach((li) => {
+      const ele = cy.getElementById(li.dataset.eleId);
+      li.classList.toggle("selected", ele.length > 0 && ele.selected());
     });
   }
 
@@ -241,4 +400,5 @@ export function initUi(graph) {
   });
 
   refreshElementList();
+  refreshHistoryButtons();
 }

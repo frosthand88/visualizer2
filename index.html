@@ -13,6 +13,8 @@
       <button id="btn-add-node" title="Add Node">+ Node</button>
       <button id="btn-add-edge" title="Connect two nodes">+ Edge</button>
       <button id="btn-delete" title="Delete selected">Delete</button>
+      <button id="btn-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+      <button id="btn-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
     </div>
     <div class="toolbar-group">
       <label for="layout-select">Layout</label>
@@ -44,11 +46,13 @@
     <main id="canvas-wrap">
       <div id="cy"></div>
       <p id="mode-indicator" class="hidden"></p>
+      <p id="canvas-hint">Drag: pan · Shift+drag: box-select · Right-click: menu</p>
     </main>
 
     <aside id="right-panel">
       <h2>Properties</h2>
       <div id="properties-empty">Select a node or edge to edit its properties.</div>
+      <div id="properties-multi" class="hidden"></div>
       <form id="properties-form" class="hidden">
         <label for="prop-label">Label</label>
         <input type="text" id="prop-label" />

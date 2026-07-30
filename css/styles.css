@@ -47,6 +47,15 @@ body {
   background: #3a4048;
 }
 
+#toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#toolbar button:disabled:hover {
+  background: #2c313a;
+}
+
 #toolbar button.active {
   background: #4f8cff;
   border-color: #4f8cff;
@@ -148,6 +157,53 @@ body {
 
 .hidden {
   display: none !important;
+}
+
+#canvas-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #999;
+  pointer-events: none;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  font-size: 0.85rem;
+}
+
+.context-menu li {
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.context-menu li:hover {
+  background: #f0f2f5;
+}
+
+.context-menu li.disabled {
+  color: #aaa;
+  cursor: default;
+}
+
+.context-menu li.disabled:hover {
+  background: none;
+}
+
+#properties-multi {
+  color: #666;
+  font-size: 0.85rem;
 }
 
 #properties-empty {

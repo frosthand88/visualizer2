@@ -31,6 +31,8 @@ export function createGraph(container) {
   const cy = cytoscape({
     container,
     elements: [],
+    selectionType: "additive",
+    boxSelectionEnabled: true,
     style: [
       {
         selector: "node",
@@ -125,6 +127,13 @@ export function createGraph(container) {
 
     removeElements(eles) {
       cy.remove(eles);
+    },
+
+    duplicateNode(node) {
+      const id = generateId("n");
+      const { id: _oldId, ...rest } = node.data();
+      const position = { x: node.position("x") + 24, y: node.position("y") + 24 };
+      return cy.add({ group: "nodes", data: { ...rest, id }, position });
     },
 
     updateData(ele, key, value) {
